@@ -1,0 +1,415 @@
+{
+  "name": "The Shadow Evaluator",
+  "nodes": [
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $('The Judge').isExecuted ? \"REVISION REQUIRED: \" + $node[\"The Judge\"].json.critique : \"INITIAL TASK. Source Text: \" + $node[\"For a True UUID & execution\"].json.brief_text }}\nPlease generate the content based on the instruction above.",
+        "options": {
+          "systemMessage": "\"You are an expert copywriter. Your task is to transform the provided input into a high-quality blog post and an email newsletter. Use the themes and specific keywords found in the text. Do not ask follow-up questions; simply provide the content.\""
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        -1104,
+        -64
+      ],
+      "id": "c67f886e-ba38-451d-8e29-252d4597fea0",
+      "name": "The Content Creator"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-oss-120b",
+          "mode": "list",
+          "cachedResultName": "gpt-oss-120b"
+        },
+        "builtInTools": {},
+        "options": {
+          "temperature": 0.7
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        -1104,
+        144
+      ],
+      "id": "23c75861-1949-42a6-8149-97ce6d36e9e7",
+      "name": "OpenAI Chat Model",
+      "credentials": {
+        "openAiApi": {
+          "id": "YOUR_CREDENTIAL_ID",
+          "name": "API account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Evaluate the following Draft against the original source text.\n\nOriginal Source Text: {{ $node[\"Webhook\"].json.body.brief_text }}\nDraft to Evaluate: {{ $node[\"For a True UUID & execution\"].json.project_name }}\n\nProvide a score from 1-10 and a detailed critique.",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "\"You are a specialized JSON engine. Evaluate the content and return a JSON object.\n\nIMPORTANT: You must output ONLY the raw JSON. Do NOT include any introductory text, markdown backticks, or '```json' tags.\n\nFormat:\n{\n\"score\": 8,\n\"approved\": true,\n\"critique\": \"The text is excellent.\"\n}\""
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        -736,
+        -64
+      ],
+      "id": "fa460b3a-be25-42fa-bdfb-8dba08fcf8c5",
+      "name": "The Judge"
+    },
+    {
+      "parameters": {
+        "options": {
+          "temperature": 0
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        -736,
+        160
+      ],
+      "id": "bc89ee0f-99b7-4864-8222-9ddd845f7f16",
+      "name": "Google Gemini Chat Model",
+      "alwaysOutputData": false,
+      "credentials": {
+        "googlePalmApi": {
+          "id": "YOUR_CREDENTIAL_ID",
+          "name": "API account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "7ff9b539-c6c0-4707-83a1-753bfcc6b0a2",
+              "leftValue": "={{ $json.output.score }}",
+              "rightValue": 8,
+              "operator": {
+                "type": "number",
+                "operation": "gte"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -320,
+        -64
+      ],
+      "id": "ed8f8aed-fc05-4245-9ce5-acf3b266c019",
+      "name": "If",
+      "executeOnce": true
+    },
+    {
+      "parameters": {
+        "sendTo": "=user@example.com",
+        "subject": "=Draft for: Draft for: {{ $node[\"Webhook\"].json.body.project_name }}",
+        "message": "={{ $node[\"Markdown\"].json.data }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        112,
+        -80
+      ],
+      "id": "237362d4-5bc8-4919-bef1-e683a2299f23",
+      "name": "Send a message",
+      "webhookId": "dc94369c-8c08-43e7-b937-0f35e3e2cabb",
+      "executeOnce": true,
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "YOUR_CREDENTIAL_ID",
+          "name": "API account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "chatHistory"
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        -960,
+        192
+      ],
+      "id": "6627f891-9074-4072-8b04-ef82d3646534",
+      "name": "Simple Memory"
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n  \"score\": 8,\n  \"approved\": true,\n  \"critique\": \"The content is professional but needs more specific call-to-action details.\"\n}",
+        "autoFix": true
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        -576,
+        144
+      ],
+      "id": "7bbf74fc-9f38-4f22-a11e-b8ff91950103",
+      "name": "Structured Output Parser"
+    },
+    {
+      "parameters": {
+        "jsCode": "const staticData = $getWorkflowStaticData('global');\n\n// Increment the counter\nstaticData.counter = (staticData.counter || 0) + 1;\n\n// Safety Switch: Kill the process if it loops more than 3 times\nif (staticData.counter > 3) {\n  staticData.counter = 0; // Reset so the NEXT test starts fresh\n  throw new Error(\"Maximum revision attempts reached. Please check the Judge's critique manually.\");\n}\n\nreturn $input.all();"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -176,
+        304
+      ],
+      "id": "ed17a5e5-734e-44e7-9846-e0dfa85bc54e",
+      "name": "Counter"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "fb6a9a44-0749-492f-8ca9-1bb4bf38d64a",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -1520,
+        -64
+      ],
+      "id": "ce41000a-6320-4752-a389-2148045dba74",
+      "name": "Webhook",
+      "webhookId": "fb6a9a44-0749-492f-8ca9-1bb4bf38d64a"
+    },
+    {
+      "parameters": {
+        "mode": "markdownToHtml",
+        "markdown": "={{ $node[\"The Content Creator\"].json.output }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.markdown",
+      "typeVersion": 1,
+      "position": [
+        -80,
+        -80
+      ],
+      "id": "ad40a89d-4021-4cb4-9d74-094603e4720b",
+      "name": "Markdown"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        -544,
+        320
+      ],
+      "id": "8338b421-c152-42e7-ad61-ef773a8f6032",
+      "name": "Google Gemini Chat Model1",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "YOUR_CREDENTIAL_ID",
+          "name": "API account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// 1. Reset the revision counter for this fresh execution\n$getWorkflowStaticData('global').counter = 0;\n\n\n// Generate a UUID v4 compatible string\nfunction generateUUID() {\n  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {\n    var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);\n    return v.toString(16);\n  });\n}\n\n// Return the new ID alongside your existing data\nreturn {\n  sessionId: generateUUID(),\n  brief_text: $json.body.brief_text, \n  project_name: $json.body.project_name\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1344,
+        -64
+      ],
+      "id": "a9c729fa-53ee-4940-8598-5067c36eee70",
+      "name": "For a True UUID & execution",
+      "executeOnce": true
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "The Content Creator",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "The Content Creator": {
+      "main": [
+        [
+          {
+            "node": "The Judge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "The Judge",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "The Judge": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Markdown",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Counter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a message": {
+      "main": [
+        []
+      ]
+    },
+    "Simple Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "The Content Creator",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "The Judge",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Counter": {
+      "main": [
+        [
+          {
+            "node": "The Content Creator",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "For a True UUID & execution",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Markdown": {
+      "main": [
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Structured Output Parser",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "For a True UUID & execution": {
+      "main": [
+        [
+          {
+            "node": "The Content Creator",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "40464622-fd1d-41f3-be9b-b754da5eefd3",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "INSTANCE_ID"
+  },
+  "id": "80gaPgbdo1fPO58Y",
+  "tags": []
+}
